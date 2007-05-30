@@ -128,8 +128,12 @@ typename TreePoseGraph<Ops>::Vertex* TreePoseGraph<Ops>::removeVertex (int id){
 }
 
 template <class Ops>
-typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::addEdge(TreePoseGraph<Ops>::Vertex* v1, TreePoseGraph<Ops>::Vertex* v2, 
-								 const TreePoseGraph<Ops>::Transformation& t, const TreePoseGraph<Ops>::Information& i){
+typename TreePoseGraph<Ops>::Edge* 
+TreePoseGraph<Ops>::addEdge(TreePoseGraph<Ops>::Vertex* v1, 
+			    TreePoseGraph<Ops>::Vertex* v2, 
+			    const TreePoseGraph<Ops>::Transformation& t, 
+			    const TreePoseGraph<Ops>::Information& i){
+
   Edge* e=edge(v1->id, v2->id);
   if (e)
     return 0;
