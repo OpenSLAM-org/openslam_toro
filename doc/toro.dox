@@ -8,6 +8,8 @@ INPUT            = 	../posegraph2.hh  \
 			../treeoptimizer2.cpp \
 			main.txt 
 
+IMAGE_PATH     = ./
+
 STRIP_FROM_PATH    	= ../
 WARNINGS         	= NO
 PERL_PATH        	= /usr/bin/perl

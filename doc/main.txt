@@ -3,6 +3,7 @@
 <br>
 <h1>Welcome to TORO - Tree-based netwORk Optimizer</h1><br>
 
+\Image html toro.jpg
 
 @section mainpage_modules What is TORO?
 
