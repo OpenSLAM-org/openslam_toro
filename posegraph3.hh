@@ -34,39 +34,40 @@
  * PURPOSE.  
  **********************************************************************/
 
-/** \file posegraph2.hh
+/** \file posegraph3.hh
  *
- * \brief Defines the graph of 2D poses, with specific functionalities
+ * \brief Defines the graph of 3D poses, with specific functionalities
  * such as loading, saving, merging constraints, and etc.
  **/
 
-#ifndef _POSEGRAPH2_HH_
-#define _POSEGRAPH2_HH_
+#ifndef _POSEGRAPH3_HH_
+#define _POSEGRAPH3_HH_
 
 #include "posegraph.hh"
-#include "transformation2.hh"
+#include "transformation3.hh"
 #include <iostream>
 #include <vector>
 
 
 
-
 /** \brief The class (struct) that contains 2D graph related functions
     such as loading, saving, merging, etc. **/
-struct TreePoseGraph2: public TreePoseGraph< Operations2D<double> >{
-
-  typedef Operations2D<double>::PoseType           Pose;
-  typedef Operations2D<double>::RotationType       Rotation;
-  typedef Operations2D<double>::TranslationType    Translation;
-  typedef Operations2D<double>::TransformationType Transformation;
-  typedef Operations2D<double>::CovarianceType     CovarianceMatrix;
-  typedef Operations2D<double>::InformationType    InformationMatrix;
+struct TreePoseGraph3: public TreePoseGraph<Operations3D<double> >{
+  typedef Operations3D<double> Ops;
   
+  typedef Ops::PoseType           Pose;
+  typedef Ops::RotationType       Rotation;
+  typedef Ops::TranslationType    Translation;
+  typedef Ops::TransformationType Transformation;
+  typedef Ops::CovarianceType     CovarianceMatrix;
+  typedef Ops::InformationType    InformationMatrix;
+
+
   /** Load a graph from a file ignoring the equivalence constraints
       @param filename the graph file
       @param overrideCovariances ignore the covariances from the file, and use identities instead
    **/
-  bool load( const char* filename, bool overrideCovariances=false); 
+  bool load( const char* filename, bool overrideCovariances=false, bool twoDimensions=false); 
 
   /** Load only the equivalence constraints from a  graph file (call load before)  **/
   bool loadEquivalences( const char* filename); 
@@ -88,10 +89,10 @@ struct TreePoseGraph2: public TreePoseGraph< Operations2D<double> >{
 
   void initializeOnTree();
   
+  virtual void initializeFromParentEdge(Vertex* v);
+
   /** Turn around the edge (<i,j>  => <j,i>)  **/
   virtual void revertEdgeInfo(Edge* e);
-
-  virtual void initializeFromParentEdge(Vertex* v);
 
   /** Function to compress a graph. Needed if, for example, equivalence
       constraints are used to build a graoh structure with indices

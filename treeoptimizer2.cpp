@@ -55,10 +55,10 @@ using namespace std;
 struct ParameterPropagator{
   void perform(TreePoseGraph2::Vertex* v){
     if (!v->parent){
-      v->parameters=Pose(0.,0.,0.);
+      v->parameters=TreePoseGraph2::Pose(0.,0.,0.);
       return;
     }
-    v->parameters=Pose(v->pose.x()-v->parent->pose.x(), 
+    v->parameters=TreePoseGraph2::Pose(v->pose.x()-v->parent->pose.x(), 
 		      v->pose.y()-v->parent->pose.y(),
 		      v->pose.theta()-v->parent->pose.theta());
   }
@@ -69,8 +69,6 @@ TreeOptimizer2::TreeOptimizer2(){
 }
 
 TreeOptimizer2::~TreeOptimizer2(){
-  if (sortedEdges)
-    delete sortedEdges;
 }
 
 void TreeOptimizer2::initializeTreeParameters(){
@@ -94,6 +92,14 @@ void TreeOptimizer2::initializeOptimization(){
   sortedEdges=sortEdges();
 }
 
+void TreeOptimizer2::initializeOnlineOptimization(){
+  // compute the size of the preconditioning matrix
+  int sz=maxIndex()+1;
+  DEBUG(1) << "Size= " << sz << endl;
+  M.resize(sz);
+  DEBUG(1) << "allocating M(" << sz << ")" << endl;
+  iteration=1;
+}
 
 void TreeOptimizer2::computePreconditioner(){
   gamma[0] = gamma[1] =  gamma[2] = MAXDOUBLE;
@@ -102,7 +108,7 @@ void TreeOptimizer2::computePreconditioner(){
     M[i]=Pose(0.,0.,0.);
 
   int edgeCount=0;
-  for (EdgeList::iterator it=sortedEdges->begin(); it!=sortedEdges->end(); it++){
+  for (EdgeSet::iterator it=sortedEdges->begin(); it!=sortedEdges->end(); it++){
     edgeCount++;
     if (! (edgeCount%10000))
       DEBUG(1) << "m";
@@ -154,12 +160,13 @@ void TreeOptimizer2::propagateErrors(){
   iteration++;
   int edgeCount=0;
   
-  for (EdgeList::iterator it=sortedEdges->begin(); it!=sortedEdges->end(); it++){
+  for (EdgeSet::iterator it=sortedEdges->begin(); it!=sortedEdges->end(); it++){
       edgeCount++;
-      if (! (edgeCount%10000))
-	DEBUG(1) << "c";
+      if (! (edgeCount%10000)) 	DEBUG(1) << "c";
+      
       Edge* e=*it;
       Vertex* top=e->top;
+      
 
       Vertex* v1=e->v1;
       Vertex* v2=e->v2;
@@ -223,7 +230,6 @@ void TreeOptimizer2::propagateErrors(){
 	}
       }
 
-
       double beta[3] = {l*alpha[0]*d.values[0], l*alpha[1]*d.values[1], l*alpha[2]*d.values[2]};
       beta[0]=(fabs(beta[0])>fabs(r.values[0]))?r.values[0]:beta[0];
       beta[1]=(fabs(beta[1])>fabs(r.values[1]))?r.values[1]:beta[1];
@@ -237,9 +243,9 @@ void TreeOptimizer2::propagateErrors(){
 	double sign=(dir==0)? -1. : 1.;
 	while (n!=top){
 	  uint i=n->id;
-	  assert(M[i].values[0]>0.01);
-	  assert(M[i].values[1]>0.01);
-	  assert(M[i].values[2]>0.01);
+	  assert(M[i].values[0]>0);
+	  assert(M[i].values[1]>0);
+	  assert(M[i].values[2]>0);
 
 	  Pose delta( beta[0]/(M[i].values[0]*tw[0]), beta[1]/(M[i].values[1]*tw[1]), beta[2]/(M[i].values[2]*tw[2]));
 	  delta=delta*sign;
@@ -263,11 +269,17 @@ void TreeOptimizer2::propagateErrors(){
       DEBUG(2) << " pf2=" << pf2.x() << " " << pf2.y() << " " << pf2.theta() << endl;
       DEBUG(2) << " en=" << p12.x()-pf2.x() << " " << p12.y()-pf2.y() << " " << p12.theta()-pf2.theta() << endl;
     }
+  
 }
 
-void TreeOptimizer2::iterate(){
+void TreeOptimizer2::iterate(TreePoseGraph2::EdgeSet* eset){
+  TreePoseGraph2::EdgeSet* temp=sortedEdges;
+  if (eset){
+    sortedEdges=eset;
+  }
   computePreconditioner();
-  propagateErrors();  
+  propagateErrors();
+  sortedEdges=temp;
 }
 
 void TreeOptimizer2::updatePoseChain(Vertex* v, Vertex* top){

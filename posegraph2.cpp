@@ -74,12 +74,9 @@ bool TreePoseGraph2::load(const char* filename, bool overrideCovariances){
       ls >> id >> p.x() >> p.y() >> p.theta(); 
       if (addVertex(id,p))
  	DEBUG(2) << "V " << id << endl;
-      else {
-	DEBUG(0) << "ERROR: Vertex " << id << " already exists. " << endl
-		 << "Skipping latest vertex!" << endl;
-      }
+      
     }
-    
+
     if (tag=="EDGE" || tag=="EDGE2"){
       int id1, id2;
       Pose p;
@@ -100,10 +97,6 @@ bool TreePoseGraph2::load(const char* filename, bool overrideCovariances){
       Transformation t(p);
       if (addEdge(v1, v2,t ,m))
 	 DEBUG(2) << "E " << id1 << " " << id2 <<  endl;
-      else {
-	DEBUG(0) << "ERROR: Two constraints between the same vertices (" << id1 << ", " << id2 << ") is not allowed. " << endl 
-		 << "Skipping latest edge!" << endl;
-      }
     }
   }
   return true;
@@ -215,8 +208,8 @@ struct PosePropagator{
   void perform(TreePoseGraph2::Vertex* v){
     if (!v->parent)
       return;
-    Transformation tParent(v->parent->pose);
-    Transformation tNode=tParent*v->parentEdge->transformation;
+    TreePoseGraph2::Transformation tParent(v->parent->pose);
+    TreePoseGraph2::Transformation tNode=tParent*v->parentEdge->transformation;
 
     //cerr << "EDGE(" << v->parentEdge->v1->id << "," << v->parentEdge->v2->id <<"): " << endl;
     //Pose pParent=v->parent->pose;
@@ -282,6 +275,17 @@ void TreePoseGraph2::revertEdgeInfo(Edge* e){
   e->transformation=it;
   e->informationMatrix=IM;
 };
+
+void TreePoseGraph2::initializeFromParentEdge(Vertex* v){
+  Transformation tp=Transformation(v->parent->pose)*v->parentEdge->transformation;
+  v->transformation=tp;
+  v->pose=tp.toPoseType();
+  v->parameters=v->pose;
+  v->parameters.x()-=v->parent->pose.x();
+  v->parameters.y()-=v->parent->pose.y();
+  v->parameters.theta()-=v->parent->pose.theta();
+  v->parameters.theta()=atan2(sin(v->parameters.theta()), cos(v->parameters.theta()));
+}
 
 void TreePoseGraph2::collapseEdge(Edge* e){
   Vertex* v1=e->v1;

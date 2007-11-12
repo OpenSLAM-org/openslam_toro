@@ -2,11 +2,15 @@ all: doall
 
 ################################
 
-TARGETS =  libtoro.a toro
+TARGETS =  libtoro.a libtoro3d.a toro toro3d
 
 libtoro.a: posegraph2.o treeoptimizer2.o
 
-toro: posegraph2.o treeoptimizer2.o  toro.o
+libtoro3d.a: posegraph3.o treeoptimizer3.o treeoptimizer3_iteration.o 
+
+toro: posegraph2.o treeoptimizer2.o toro.o
+
+toro3d: posegraph3.o treeoptimizer3.o treeoptimizer3_iteration.o  toro3d.o
 
 ################################
 #

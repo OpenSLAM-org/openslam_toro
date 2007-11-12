@@ -104,6 +104,7 @@ typename TreePoseGraph<Ops>::Vertex* TreePoseGraph<Ops>::addVertex(int id, const
   v->id=id;
   v->pose=pose;
   v->parent=0;
+  v->mark=false;
   vertices.insert(make_pair(id,v));
   return v;
 }
@@ -128,17 +129,14 @@ typename TreePoseGraph<Ops>::Vertex* TreePoseGraph<Ops>::removeVertex (int id){
 }
 
 template <class Ops>
-typename TreePoseGraph<Ops>::Edge* 
-TreePoseGraph<Ops>::addEdge(TreePoseGraph<Ops>::Vertex* v1, 
-			    TreePoseGraph<Ops>::Vertex* v2, 
-			    const TreePoseGraph<Ops>::Transformation& t, 
-			    const TreePoseGraph<Ops>::Information& i){
-
+typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::addEdge(TreePoseGraph<Ops>::Vertex* v1, TreePoseGraph<Ops>::Vertex* v2, 
+								 const TreePoseGraph<Ops>::Transformation& t, const TreePoseGraph<Ops>::Information& i){
   Edge* e=edge(v1->id, v2->id);
   if (e)
     return 0;
   
   e=new Edge;
+  e->mark=false;
   e->v1=v1;
   e->v2=v2;
   e->top=0;
@@ -151,11 +149,66 @@ TreePoseGraph<Ops>::addEdge(TreePoseGraph<Ops>::Vertex* v1,
 }
 
 template <class Ops>
+typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::addIncrementalEdge(int id1, int id2, 
+							       const TreePoseGraph<Ops>::Transformation& t, const TreePoseGraph<Ops>::Information& i){
+  EVComparator<Edge*> comp;
+  comp.mode=edgeCompareMode;
+  if (! sortedEdges)
+    sortedEdges=new EdgeSet(comp);
+
+  typename VertexMap::iterator it1=vertices.find(id1);
+  typename VertexMap::iterator it2=vertices.find(id2);
+  Vertex* v1, *v2, *addedVertex=0;
+  if (it1==vertices.end() && it2==vertices.end()){
+    return 0;
+  }
+  
+  if (it1==vertices.end()){
+    typename TreePoseGraph<Ops>::Pose p;
+    v1=addedVertex=addVertex(id1,p); 
+  } else {
+    v1=it1->second;
+  }
+  if (it2==vertices.end()){
+    typename TreePoseGraph<Ops>::Pose p;
+    v2=addedVertex=addVertex(id2,p); 
+  } else {
+    v2=it2->second;
+  }
+
+  Edge* e=addEdge(v1,v2,t,i);
+  if (!e){
+    return 0;
+  }
+  
+  if (addedVertex){
+    Vertex* otherVertex= (addedVertex==v1)? v2:v1;
+    addedVertex->parent=otherVertex;
+    addedVertex->parentEdge=e;
+    addedVertex->level=otherVertex->level+1;
+    otherVertex->children.push_back(e);
+  }
+  if(v1->id>v2->id){
+    revertEdge(e);
+  }
+  
+  fillEdgeInfo(e);
+  sortedEdges->insert(e);
+
+  if (addedVertex){
+    initializeFromParentEdge(addedVertex);
+  }
+  return e;
+}
+
+
+template <class Ops>
 typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::removeEdge(TreePoseGraph<Ops>::Edge* e){
   {
     typename EdgeMap::iterator it=edges.find(e);
-    if (it==edges.end())
+    if (it==edges.end()){
       return 0;
+    }
     edges.erase(it);
   }
 
@@ -231,7 +284,8 @@ bool TreePoseGraph<Ops>::buildMST(int id){
   typename VertexMap::iterator it=vertices.begin();
   while (it!=vertices.end()){
     it->second->parent=0;
-    it->second->children.clear();
+    it->second->parentEdge=0;
+    it->second->children.clear(); 
     it++;
   }
   Vertex* v=vertex(id);
@@ -285,8 +339,12 @@ struct LevelAssigner{
   }
 };
 
+
+
+
 template <class Ops>
 bool TreePoseGraph<Ops>::buildSimpleTree(){
+  root=0;
   //rectify all the constraints, so that the v1<v2
   for (typename EdgeMap::iterator it=edges.begin(); it!=edges.end(); it++){
     Edge* e=it->second;
@@ -298,6 +356,7 @@ bool TreePoseGraph<Ops>::buildSimpleTree(){
   for (typename VertexMap::iterator it=vertices.begin(); it!=vertices.end(); it++){
     Vertex* v=it->second;
     v->parent=0;
+    v->parentEdge=0;
     v->children.clear();
   }
 
@@ -326,6 +385,7 @@ bool TreePoseGraph<Ops>::buildSimpleTree(){
       v->parent=bestEdge->v1;
       v->parent->children.push_back(bestEdge);
     } else {
+      assert(! root);
       root=v;
     }
   }
@@ -357,6 +417,9 @@ void TreePoseGraph<Ops>::clear(){
   }
   vertices.clear();
   edges.clear();
+  if ( sortedEdges )
+    delete sortedEdges;
+  sortedEdges=0;
 }
 
 template <class Ops>
@@ -390,36 +453,138 @@ void TreePoseGraph<Ops>::fillEdgesInfo(){
 }
 
 
-/** \brief A comparator class (struct) that compares the level
-    of two vertices if edges **/
-template <class E> 
-struct EVComparator{
-  /** Comparison operator for the level **/
-  bool operator() (const E& e1, const E& e2){
-    int o1=e1->top->level;
-    int o2=e2->top->level;
-    return o1<o2;
-  }
-};
-
 template <class Ops>
-typename TreePoseGraph<Ops>::EdgeList* TreePoseGraph<Ops>::sortEdges(){
-  std::vector<Edge*> ev(edges.size());
-  int i=0;
+typename TreePoseGraph<Ops>::EdgeSet* TreePoseGraph<Ops>::sortEdges(){
+  EVComparator<Edge*> comp;
+  comp.mode=edgeCompareMode;
+  EdgeSet * el=new EdgeSet(comp);
   typename EdgeMap::iterator it=edges.begin();
   while(it!=edges.end()){
-    ev[i++]=it->second;
+    el->insert(it->second);
     it++;
   }
-  
-  EVComparator<Edge*> ec;
-  sort(ev.begin(), ev.end(), ec);
-
-  EdgeList * el=new EdgeList;
-  for (int i=0; i<(int)ev.size(); i++)
-    el->push_back(ev[i]);
   return el;
 }
+
+template <class Ops>
+typename TreePoseGraph<Ops>::EdgeSet* TreePoseGraph<Ops>::affectedEdges(Vertex* v){
+  EVComparator<Edge*> comp;
+  comp.mode=edgeCompareMode;
+  EdgeSet * es=new EdgeSet(comp);
+  std::deque<Vertex*> frontier;
+  std::list<Vertex*> markedVertices;
+ 
+  //frontier.push_back(v);
+  //v->mark=true;
+ 
+  for (typename EdgeList::iterator it=v->children.begin(); it!=v->children.end(); it++){
+    Edge* e=*it;
+    Vertex* other=(e->v1==v)?e->v2:e->v1;
+    frontier.push_back(other);
+    other->mark=true;
+    markedVertices.push_back(other);
+    e->mark=true;
+    es->insert(e);
+   }
+
+  while (! frontier.empty()){
+    Vertex* c=frontier.front();
+    frontier.pop_front();
+    markedVertices.push_back(c);
+    EdgeList& el=c->edges;
+    for (typename EdgeList::iterator it=el.begin(); it!=el.end(); it++){
+      Edge* e=*it;
+      if (e->mark)
+	continue;
+      Vertex* other= (e->v1==c)?e->v2:e->v1;
+      if (other==c->parent)
+	continue;
+      if (other!=e->top && ! e->top->mark){
+	e->top->mark=true;
+	frontier.push_back(e->top);
+      }
+      e->mark=true;
+      es->insert(e);
+      if (!other->mark){
+	other->mark=true;
+	frontier.push_back(other);
+      }
+    }
+  }
+  for (typename std::list<Vertex*>::iterator it=markedVertices.begin(); it!=markedVertices.end(); it++){
+    (*it)->mark=false;
+  }
+
+  for (typename EdgeSet::iterator it=es->begin(); it!=es->end(); it++){
+    (*it)->mark=false;
+  }
+  return es;
+}
+
+template <class Ops>
+typename TreePoseGraph<Ops>::EdgeSet* TreePoseGraph<Ops>::affectedEdges(typename TreePoseGraph<Ops>::VertexSet& vl){
+  EVComparator<Edge*> comp;
+  comp.mode=edgeCompareMode;
+  EdgeSet * es=new EdgeSet(comp);
+  std::deque<Vertex*> frontier;
+  std::list<Vertex*> markedVertices;
+
+//   for (typename VertexSet::iterator it=vl.begin(); it!=vl.end(); it++){
+//     frontier.push_back(*it);
+//     (*it)->mark=true;
+//   }
+
+  for (typename VertexSet::iterator it=vl.begin(); it!=vl.end(); it++){
+    Vertex* v=*it;
+    for (typename EdgeList::iterator it=v->children.begin(); it!=v->children.end(); it++){
+      Edge* e=*it;
+      Vertex* other=(e->v1==v)?e->v2:e->v1;
+      frontier.push_back(other);
+      other->mark=true;
+      markedVertices.push_back(other);
+      e->mark=true;
+      es->insert(e);
+    }
+  }
+
+
+
+
+  while (! frontier.empty()){
+    Vertex* c=frontier.front();
+    frontier.pop_front();
+    markedVertices.push_back(c);
+    EdgeList& el=c->edges;
+    for (typename EdgeList::iterator it=el.begin(); it!=el.end(); it++){
+      Edge* e=*it;
+      if (e->mark)
+	continue;
+      Vertex* other= (e->v1==c)?e->v2:e->v1;
+      if (other==c->parent)
+	continue;
+      if (other!=e->top && ! e->top->mark){
+	e->top->mark=true;
+	frontier.push_back(e->top);
+      }
+      e->mark=true;
+      es->insert(e);
+      if (!other->mark){
+	other->mark=true;
+	frontier.push_back(other);
+      }
+    }
+  }
+  for (typename std::list<Vertex*>::iterator it=markedVertices.begin(); it!=markedVertices.end(); it++){
+    (*it)->mark=false;
+  }
+
+  for (typename EdgeSet::iterator it=es->begin(); it!=es->end(); it++){
+    (*it)->mark=false;
+  }
+  return es;
+}
+
+
 
 template <class Ops>
 int TreePoseGraph<Ops>::maxPathLength(){
@@ -466,3 +631,48 @@ int TreePoseGraph<Ops>::maxIndex(){
   return -1;
 }
 
+
+/** \brief A class (struct) to dermine the level of a vertex in the tree **/
+template <class TPG>
+struct CompressedNodesMarker{
+  typename TPG::BaseType distance;
+  int marked;
+  CompressedNodesMarker(){
+    distance=0;
+    marked=0;
+  }
+  /** marks the nodes to be suppressed when compressing a graph **/
+  void perform(typename TPG::Vertex* v){
+    typename TPG::Vertex* aux=v;
+    typename TPG::Transformation vt=v->transformation;
+    while (aux && ! aux->mark && aux->parent){
+      aux=aux->parent;
+    }
+    if (! aux)
+      return;
+    typename TPG::Transformation at=aux->transformation;
+    typename TPG::Transformation dt=at.inv()*vt;
+    typename TPG::Translation dtrans=dt.translation();
+    typename TPG::BaseType d=sqrt(dtrans*dtrans);
+    if (d<distance)
+      v->mark=false;
+    else {
+      v->mark=true;
+      marked++;
+    }
+  }
+};
+
+template <class Ops>
+int TreePoseGraph<Ops>::markNodesToCompress( TreePoseGraph<Ops>::BaseType distance){
+  for (typename VertexMap::iterator it=vertices.begin(); it!=vertices.end(); it++){
+    Vertex* v=it->second;
+    v->mark=false;
+  }
+  assert(root);
+  root->mark=true;
+  CompressedNodesMarker< TreePoseGraph<Ops> > nc;
+  nc.distance=distance;
+  treeDepthVisit(nc, root);
+  return nc.marked;
+}

@@ -8,8 +8,10 @@
 @section mainpage_modules What is TORO?
 
 TORO is an optimization approach for constraint-network. It provides a
-highly efficient, gradient descent-based error minimization procedure
-and one of the fastest methods so far (2007).
+highly efficient, gradient descent-based error minimization procedure.
+Currently (2007), there are not many such efficient methods available
+(at least we have not seen them yet...)  There is a 2D and a 3D
+version of TORO available.
 
 In 2006, Olson et al. presented a novel approach to solve the
 graph-based SLAM problem by applying stochastic gradient descent to
@@ -19,6 +21,9 @@ the graph that significantly improves the performance and enables a
 robot to cope with arbitrary network topologies. The latter allows us
 to bound the complexity of the algorithm to the size of the mapped
 area and not to the length of the trajectory.
+
+Update 11/2007: We provide a new version of TORO that works also in 3D and
+not only in 2D.
 
 @section mainpage_copyright Copyright and License Information
 
@@ -72,7 +77,7 @@ $ gnuplot XXXXX
 @endverbatim
 
 
-@section mainpage_run2 Long Guide: Running TORO
+@section mainpage_run2 Long Guide: Running TORO (2D)
 
 You have the following command line options
 @verbatim
@@ -89,15 +94,42 @@ $ ./toro [options] <graph-file>
  -oc        override covariances from the file (deals with corrupted input)
 @endverbatim
 
+@section mainpage_run3 Long Guide: Running TORO3D
+
+You have the following command line options
+@verbatim
+$ ./toro3d [options] <graph-file>
+ Options are 
+ -vl <int>  set verbosity level
+ -dr        disables node reduction
+ -mst       use the minimum spanning tree
+ -ic        enable index renaming (saves memory)
+ -nib       disable initialization according to observations
+ -i <int>   perform <int> iterations
+ -df        dump gnuplot files of the intermediate results
+ -nde       disable dump error on screen (saves time)
+ -ar        adaptive restart
+ -oc        overrides covariances
+ -ip        ignores preconditioner
+ -2d        load a 2d file
+ -sl        sort the constraints according to the length of the path
+            instead that according to the level of a constraint
+@endverbatim
+
 @section mainpage_further Further Reading
 
-TORO is an implementation of the approach described in:
+TORO3D is an implementation of the approach described in:
+
+Grisetti Giorgio, Slawomir Grzonka, Cyrill Stachniss, Patrick Pfaff, and Wolfram Burgard
+Efficient Estimation of Accurate Maximum Likelihood Maps in 3D.
+In Proc. of the IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), 2007.
+
+TORO (2D) is an implementation of the approach described in:
 
 Giorgio Grisetti, Cyrill Stachniss, Slawomir Grzonka, and Wolfram Burgard
 A Tree Parameterization for Efficiently Computing Maximum Likelihood Maps using Gradient Descent.
 Robotics: Science and Systems (RSS),
 Atlanta, GA, USA, 2007.
-
 
 It is highly recommended to read:
 

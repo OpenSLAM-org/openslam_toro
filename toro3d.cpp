@@ -36,7 +36,8 @@
 
 #include <sys/time.h>
 #include <iostream>
-#include "treeoptimizer2.hh"
+#include <fstream>
+#include "treeoptimizer3.hh"
 #include <sys/time.h>
 
 using namespace std;
@@ -45,8 +46,8 @@ using namespace std;
 char*  message[] =
 {
   "*******************************************************************",
-  "*                             TORO v 0.1                          *",
-  "* (c) Giorgio Grisetti, Cyrill Stachniss, and Wolfram Burgard     *",
+  "*                             TORO3D v 0.1                          *",
+  "* (c) G. Grisetti, S. Grzonka, C. Stachniss, and W. Burgard     *",
   "*******************************************************************",
   "",
   " Usage toro [options] <graph file>",
@@ -57,13 +58,18 @@ char*  message[] =
   " -ic        enable index renaming (saves memory)",
   " -nib       disable initialization according to observations",
   " -i <int>   perform <int> iterations",
-  " -df        dump gnuplot files of the intermediateresults",
+  " -df        dump gnuplot files of the intermediate results",
   " -nde       disable dump error on screen (saves time)",
-  " -oc        override covariances from the file (deals with corrupted input)",
-  "",
+  " -ar        adaptive restart",
+  " -oc        overrides covariances",
+  " -ip        ignores preconditioner",
+  " -2d        load a 2d file",
+  " -sl        sort the constraints according to the length of the path",
+  "            instead that according to the level of a constraint",
   "Enjoy!",
   0
 };
+
 
 string stripExtension(const string s){
   int i;
@@ -85,19 +91,46 @@ string getExtension(const string s){
   return s.substr(i,s.length()-i);
 }
 
-int main (int argc, const char** argv){
-  TreeOptimizer2 pg;
-  bool compressIndices=true;
-  bool reduceNodes=true;
-  bool initializeOnTree=true;
-  int  treeType=0;
-  int  iterations=100;
-  bool dumpIterations=false;
-  bool dumpError=true;
-  bool overrideCovariances=false;
-  int  verboseLevel=0;
+TreeOptimizer3 pg;
+bool compressIndices=true;
+bool reduceNodes=true;
+bool initializeOnTree=true;
+int  treeType=0;
+int  iterations=100;
+bool dumpIterations=false;
+bool dumpError=true;
+bool adaptiveRestart=false;
+int  verboseLevel=0;
+bool ignorePreconditioner=false;
+bool overrideCovariances=false;
+bool twoDimensions = false;
+TreeOptimizer3::EdgeCompareMode compareMode=EVComparator<TreeOptimizer3::Edge*>::CompareLevel;
+string filename;
 
-  string filename;
+void printBannerAndStatus(ostream& os){
+  os << "#******************************************************************" << endl;
+  os << "#                              TORO3D v 0.1                       *" << endl;
+  os << "#    (c) G.Grisetti, S.Grzonka, C.Stachniss, and W. Burgard       *" << endl;
+  os << "#******************************************************************" << endl;
+  os << "#Verbosity Level              = " << verboseLevel << endl;
+  os << "#Node Reduction               = " << ((reduceNodes)?"enabled":"disabled") << endl;
+  os << "#Tree Construction            = " << ((treeType)?"MST":"Simple") << endl;
+  os << "#IndexCompression             = " << ((compressIndices)?"enabled":"disabled") << endl;
+  os << "#InitialBoost                 = " << ((initializeOnTree)?"enabled":"disabled") << endl;
+  os << "#Dumping Iterations           = " << ((dumpIterations)?"enabled":"disabled") << endl;
+  os << "#Iterations                   = " << iterations << endl;
+  os << "#Dumping Intermediate Files   = " << ((dumpIterations)?"enabled":"disabled") << endl;
+  os << "#Dumping Error                = " << ((dumpError)?"enabled":"disabled") << endl;
+  os << "#AdaptiveRestart              = " << ((adaptiveRestart)?"enabled":"disabled") << endl;
+  os << "#IgnorePreconditioner         = " << ((ignorePreconditioner)?"enabled":"disabled") << endl;
+  os << "#OverrideCovariances          = " << ((overrideCovariances)?"enabled":"disabled") << endl;
+  os << "#2D File                      = " << ((twoDimensions)?"enabled":"disabled") << endl;
+  os << "#Edge Sorting                 = " << ((compareMode==EVComparator<TreeOptimizer3::Edge*>::CompareLevel)?"level":"length") << endl;
+  os << "#***********************************" << endl;
+  os << endl;
+}
+
+int main (int argc, const char** argv){
 
   if (argc==1){
     int i=0;
@@ -126,8 +159,16 @@ int main (int argc, const char** argv){
       dumpIterations=true;
     } else if (string(argv[c])=="-nde"){
       dumpError=false;
+    } else if (string(argv[c])=="-ar"){
+      adaptiveRestart=true;
+    } else if (string(argv[c])=="-ip"){
+      ignorePreconditioner=true;
     } else if (string(argv[c])=="-oc"){
       overrideCovariances=true;
+    } else if (string(argv[c])=="-2d"){
+      twoDimensions=true;
+    } else if (string(argv[c])=="-sl"){
+      compareMode=EVComparator<TreeOptimizer3::Edge*>::CompareLevel;
     } else {
       filename=argv[c];
       break;
@@ -140,29 +181,12 @@ int main (int argc, const char** argv){
     return 0;
   }
     
-
-
-  cerr << "*******************************************************************" << endl;
-  cerr << "*                              TORO v 0.1                         *" << endl;
-  cerr << "* (c) Giorgio Grisetti, Cyrill Stachniss, and Wolfram Burgard     *" << endl;
-  cerr << "*******************************************************************" << endl;
-  cerr << " Verbosity Level              = " << verboseLevel << endl;
-  cerr << " Node Reduction               = " << ((reduceNodes)?"enabled":"disabled") << endl;
-  cerr << " Tree Construction            = " << ((treeType)?"MST":"Simple") << endl;
-  cerr << " IndexCompression             = " << ((compressIndices)?"enabled":"disabled") << endl;
-  cerr << " InitialBoost                 = " << ((initializeOnTree)?"enabled":"disabled") << endl;
-  cerr << " Dumping Iterations           = " << ((dumpIterations)?"enabled":"disabled") << endl;
-  cerr << " Iterations                   = " << iterations << endl;
-  cerr << " Dumping Intermediate Files   = " << ((dumpIterations)?"enabled":"disabled") << endl;
-  cerr << " Dumping Error                = " << ((dumpError)?"enabled":"disabled") << endl;
-  cerr << " Override Covariances         = " << ((overrideCovariances)?"enabled":"disabled") << endl;
-  cerr << "************************************" << endl;
-  cerr << endl;
+  printBannerAndStatus(cerr);
 
   pg.verboseLevel=verboseLevel;
 
-  cerr << "Loading graph file... ";
-  if (!pg.load( filename.c_str(), overrideCovariances)) {
+  cerr << "Loading graph file \"" << filename << "\"... ";
+  if (!pg.load( filename.c_str(), overrideCovariances, twoDimensions)) {
     cerr << "FATAL ERROR: Could not read file. Abrting." << endl;
     return 0;
   }
@@ -177,6 +201,7 @@ int main (int argc, const char** argv){
     cerr << " #nodes:" << pg.vertices.size() << " #edges:" << pg.edges.size() << endl; 
   }
 
+  pg.restartOnDivergence=adaptiveRestart;
 
   if (compressIndices){
     cerr << "Compressing indices... ";
@@ -208,12 +233,11 @@ int main (int argc, const char** argv){
 
   cerr << "Initializing the optimizer... ";
   pg.initializeTreeParameters();
-  pg.initializeOptimization();
+  pg.initializeOptimization(compareMode);
   double l=pg.totalPathLength();
   int nEdges=pg.edges.size();
   double apl=l/(double)(nEdges);
   cerr << "Done" << endl;
-
 
   cerr << " Average path length=" << apl << endl;
   cerr << " Complexity of an iteration=" << l  << endl;
@@ -225,18 +249,40 @@ int main (int argc, const char** argv){
   string output=strippedFilename+"-treeopt-initial.graph";
   pg.save(output.c_str());
   cerr << "Done" << endl << endl;
-
-  cerr << "Saving starting graph (gnuplot_... ";
   output=strippedFilename+"-treeopt-initial.dat";
   pg.saveGnuplot(output.c_str());
   cerr << "Done" << endl << endl;
+  string errorOutput=strippedFilename+"-treeopt-error.dat";
+  ofstream errorStream;
 
 
+  if (dumpError){
+    errorStream.open(errorOutput.c_str());
+    printBannerAndStatus(errorStream);
+    errorStream << "# InputFile : " << filename << endl;
+    errorStream << "# Nodes : " << pg.vertices.size() << " #edges: " << pg.edges.size() << endl; 
+    errorStream << "# Average path length: " << apl << endl;
+    errorStream << "# Complexity of an iteration: " << l  << endl;
+
+    errorStream << "# Line Format:" << endl
+		<< "#   1:iteration" << endl
+		<< "#   2:RotationalGain" << endl
+		<< "#   3:error" << endl
+		<< "#   4:error/constraint" << endl
+		<< "#   5:max rotational error" << endl
+		<< "#   6:average rotational error" << endl
+		<< "#   7:max translational error" << endl
+		<< "#   8:average translational error" << endl;
+  }
+
+
+
+  bool corrupted=false;
   cerr << "**** Starting optimization ****" << endl;
   struct timeval ts, te;
   gettimeofday(&ts,0);
   for (int i=0; i<iterations; i++){
-    pg.iterate();
+    pg.iterate(0,ignorePreconditioner);
     if (dumpIterations){
       char b[10];
       sprintf(b,"%04d",i);
@@ -245,22 +291,42 @@ int main (int argc, const char** argv){
     }
     if (dumpError){
       // compute the error and dump it
-      double error=pg.error();
-      cerr << "iteration = " << i << "  global error = " << error << "   error/constraint = " << error/nEdges << endl;
-    }
+      double mte, mre, are, ate;
+      double error=pg.error(&mre, &mte, &are, &ate);
+      cerr << "iteration " << i << " RotGain=" << pg.getRotGain() << endl
+           << "  global error = " << error << "   error/constraint = " << error/nEdges << endl;
+      cerr << "  mte=" << mte << "  mre=" << mre << " are=" << are << " ate=" << ate << endl;
+      errorStream << i << " " 
+		  << pg.getRotGain() << " "
+		  << error << " "
+		  << error/nEdges << " "
+		  << mre << " "
+		  << are << " "
+		  << mte << " "
+		  << ate << endl;
+
+      cout << error << endl;
+      if (mre>(M_PI/2)*(M_PI/2))
+	corrupted=true;
+      else
+	corrupted=false;
+   }
   }
   gettimeofday(&te,0);
   cerr << "**** Optimization Done ****" << endl;
 
   double dts=(te.tv_sec-ts.tv_sec)+1e-6*(te.tv_usec-ts.tv_usec);
   cerr << "TOTAL TIME= " << dts << " s." << endl;
-
+  
+  if (corrupted)
+    strippedFilename=strippedFilename+"-corrupted";
   cerr << "Saving files...(graph file)" << endl;
   output=strippedFilename+"-treeopt-final.graph";
   pg.save(output.c_str());
   cerr << "...(gnuplot file)..." << endl;
   output=strippedFilename+"-treeopt-final.dat";
   pg.saveGnuplot(output.c_str());
-
+  errorStream.close();
   cerr << "Done" << endl;
-} 
+
+}

@@ -54,12 +54,41 @@
 #include <values.h>
 #include <algorithm>
 
+
+/** \brief A comparator class (struct) that compares the level
+    of two vertices if edges **/
+template <class E> 
+struct EVComparator{
+  /** Comparison operator for the level **/
+  enum CompareMode {CompareLevel, CompareLength};
+  CompareMode mode;
+
+  EVComparator(){
+    mode=CompareLevel;
+  }
+  inline bool operator() (const E& e1, const E& e2){
+    int o1=0, o2=0;
+    switch (mode){
+    case CompareLevel:
+      o1=e1->top->level;
+      o2=e2->top->level;
+      break;
+    case CompareLength:
+      o1=e1->length;
+      o2=e2->length;
+      break;
+    }
+    return o1<o2;
+  }
+};
+
 /** \brief The template class for representing an abstract tree
     without specifing the dimensionality of the exact parameterization
     of the nodes. This definition is passed in via the Operation (Ops)
     template class **/
 template <class Ops>
 struct TreePoseGraph{
+  typedef typename Ops::BaseType BaseType;
   typedef typename Ops::PoseType Pose;
   typedef typename Ops::RotationType Rotation;
   typedef typename Ops::TranslationType Translation;
@@ -72,18 +101,25 @@ struct TreePoseGraph{
 
   /** \brief Definition of an edge in the graph based on the template
       input from Ops **/
-    struct Edge{
+  struct Edge{
     Vertex* v1;   /**< The constraint is defined between v1 and v2 **/
     Vertex* v2;   /**< The constraint is defined between v1 and v2 **/
     Vertex* top;  /**< The node with the smallest level in the path **/
     int length;   /**< Length of the path on the tree (number of vertieces involved) **/
     Transformation transformation;    /**< Transformation describing the constraint (relative mapping) **/
     Information    informationMatrix; /**< Uncertainty encoded in the information matrix **/
+
+    bool mark;
+    
+    double learningRate;
   };
 
+  typedef typename EVComparator<Edge*>::CompareMode EdgeCompareMode;
   typedef typename std::list< Edge* > EdgeList;
   typedef typename std::map< int, Vertex* > VertexMap;
+  typedef typename std::set< Vertex* > VertexSet;
   typedef typename std::map< Edge*, Edge* > EdgeMap;
+  typedef typename std::multiset< Edge*, EVComparator<Edge*> > EdgeSet;
 
   /** \brief Definition of a vertex in the graph based on the
       template input from Ops **/
@@ -100,8 +136,11 @@ struct TreePoseGraph{
     EdgeList children;   /**< All constraints involving the children of this vertex **/
 
     // Parameterization-related elements
+    Transformation transformation; /**< redundant representation of the vertex, without gymbal locks **/
     Pose pose;              /**< The pose of the vertex **/
     Parameters parameters;  /**< The parameter representation **/
+
+    bool mark;
   };
 
   /** Returns the vertex with the given id **/
@@ -127,6 +166,29 @@ struct TreePoseGraph{
   /** Remove an edge/constraint from the graph **/
   Edge* removeEdge(Edge* eq);
 
+   /** Adds en edge incrementally to the tree. 
+      It builds a simple tree and initializes the structures for the optimization.
+
+      This function is for online processing.
+      It requires that at least one vertex is already present in the graph.
+      The vertices are represented by their ids.
+     
+      Once the edge is introduced in the structure:
+      - the parent of the node with the higher ID is computed.
+      - the top node is assigned
+      - the edge is inserted in the
+
+      @returns A pointer to the added edge, if the insertion was succesfull. 0 otherwise.
+  **/
+  Edge* addIncrementalEdge(int id1, int id2,  const Transformation& t, const Information& i);
+
+  /** Returns a set of edges which are accected by the mofification of the vertex v.
+      The set is ordered according to the level of their top node.
+   **/
+  EdgeSet* affectedEdges(Vertex* v);
+
+  EdgeSet* affectedEdges(VertexSet& vl);
+
   /** Function to perform a breadth-first visit of the nodes in the tree to carry out a specific action act**/
   template <class Action>
   void treeBreadthVisit(Action& act);
@@ -134,6 +196,9 @@ struct TreePoseGraph{
   /** Function to perform a depth-first visit of the nodes in the tree to carry out a specific action act **/
   template <class Action>
   void treeDepthVisit(Action& act, Vertex *v);
+
+  /** marks the nodes to compress on the tree, given a distance criterion */
+  int markNodesToCompress(BaseType distance);
 
   /** Constructs the tree be computing a minimal spanning tree **/
   bool buildMST(int id);
@@ -147,14 +212,23 @@ struct TreePoseGraph{
   /** Revert edge info. This function needs to be implemented by a subclass **/
   virtual void revertEdgeInfo(Edge* e) = 0;
 
+  /** Revert edge info. This function needs to be implemented by a subclass **/
+  virtual void initializeFromParentEdge(Vertex* v) = 0;
+
   /** Delete all edges and vertices **/
   void clear();
+
+  /**constructor*/
+  TreePoseGraph(){
+    sortedEdges=0; 
+    edgeCompareMode=EVComparator<Edge*>::CompareLevel;
+  }
 
   /** Destructor **/
   virtual ~TreePoseGraph();
 
   /** Sort constraints for correct processing order **/
-  EdgeList* sortEdges();
+  EdgeSet* sortEdges();
 
   /** Determines the length of the longest path in the tree **/
   int maxPathLength();
@@ -177,11 +251,16 @@ struct TreePoseGraph{
   /** All edges **/
   EdgeMap edges;
 
+  /** The constraints/edges sorted according to the level in the tree
+      in order to allow us the efficient update (pose computation) of
+      the nodes in the tree (see the RSS07 paper for further
+      details) **/
+  EdgeSet* sortedEdges;
+
 protected:
   void fillEdgeInfo(Edge* e);
   void fillEdgesInfo();
-
-
+  EdgeCompareMode edgeCompareMode;
 };
 
 //include the template implementation part

@@ -54,7 +54,7 @@ struct Vector2{
   /** Constructor **/
   Vector2(T x, T y)        {values[0]=x; values[1]=y;}
   /** Default constructor which sets x and y to 0 **/
-  Vector2()                {values[0]=0.; values[1]=0.;}
+  Vector2()                {values[0]=0; values[1]=0;}
 
   /** @returns Const reference to x **/
   inline const T& x()      const  {return values[0];}
@@ -387,9 +387,12 @@ SMatrix3<T>  SMatrix3<T>::inv() const{
    return i*id;
 }
 
+
+
 /** \brief Tenmplate class to define the operations in 2D  **/
 template <class T>
 struct Operations2D{
+  typedef T                  BaseType;            /**< base type of the operation typedef **/
   typedef Pose2<T>           PoseType;            /**< plain representation of the 2d pose as x,y,theta **/
   typedef Pose2<T>           ParametersType;      /**< plain representation of the 2d pose as x,y,theta **/
   typedef T                  RotationType;        /**< plain representation of the angle **/

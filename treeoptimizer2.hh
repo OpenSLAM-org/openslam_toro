@@ -62,8 +62,11 @@ struct TreeOptimizer2: public TreePoseGraph2{
   /** Initialization function **/
   void initializeOptimization();
 
+  /** Initialization function **/
+  void initializeOnlineOptimization();
+  
   /** Performs one iteration of the algorithm **/
-  void iterate();
+  void iterate(TreePoseGraph2::EdgeSet* eset=0);
 
   /** Conmputes the gloabl error of the network **/
   double error() const;
@@ -95,12 +98,6 @@ protected:
   /** The diaginal block elements of the preconditioning matrix (D_k
       in the paper) **/
   PoseVector M;
-
-  /** The constraints/edges sorted according to the level in the tree
-      in order to allow us the efficient update (pose computation) of
-      the nodes in the tree (see the RSS07 paper for further
-      details) **/
-  EdgeList* sortedEdges;
 
 };
 
