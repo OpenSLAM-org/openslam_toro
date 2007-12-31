@@ -54,6 +54,7 @@
 #include <values.h>
 #include <algorithm>
 
+namespace AISNavigation{
 
 /** \brief A comparator class (struct) that compares the level
     of two vertices if edges **/
@@ -197,9 +198,6 @@ struct TreePoseGraph{
   template <class Action>
   void treeDepthVisit(Action& act, Vertex *v);
 
-  /** marks the nodes to compress on the tree, given a distance criterion */
-  int markNodesToCompress(BaseType distance);
-
   /** Constructs the tree be computing a minimal spanning tree **/
   bool buildMST(int id);
 
@@ -242,6 +240,10 @@ struct TreePoseGraph{
   /** compute the highest index of an vertex **/
   int maxIndex();
 
+  /** performs a consistency check on the tree and the graph structure.
+      @returns false on failure.*/
+  bool sanityCheck();
+
   /** The root node of the tree **/
   Vertex* root;
 
@@ -266,5 +268,7 @@ protected:
 //include the template implementation part
 
 #include "posegraph.hxx"
+
+}; //namespace AISNavigation
 
 #endif

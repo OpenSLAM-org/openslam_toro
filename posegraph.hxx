@@ -131,6 +131,8 @@ typename TreePoseGraph<Ops>::Vertex* TreePoseGraph<Ops>::removeVertex (int id){
 template <class Ops>
 typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::addEdge(TreePoseGraph<Ops>::Vertex* v1, TreePoseGraph<Ops>::Vertex* v2, 
 								 const TreePoseGraph<Ops>::Transformation& t, const TreePoseGraph<Ops>::Information& i){
+  if (v1==v2)
+    return 0;
   Edge* e=edge(v1->id, v2->id);
   if (e)
     return 0;
@@ -155,6 +157,7 @@ typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::addIncrementalEdge(int id
   comp.mode=edgeCompareMode;
   if (! sortedEdges)
     sortedEdges=new EdgeSet(comp);
+  
 
   typename VertexMap::iterator it1=vertices.find(id1);
   typename VertexMap::iterator it2=vertices.find(id2);
@@ -176,20 +179,23 @@ typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::addIncrementalEdge(int id
     v2=it2->second;
   }
 
+  if (v1->id==v2->id){
+    assert(0);
+  }
+    
   Edge* e=addEdge(v1,v2,t,i);
   if (!e){
     return 0;
   }
-  
+  if (v1->id>v2->id)
+    revertEdge(e);
+
   if (addedVertex){
     Vertex* otherVertex= (addedVertex==v1)? v2:v1;
     addedVertex->parent=otherVertex;
     addedVertex->parentEdge=e;
     addedVertex->level=otherVertex->level+1;
     otherVertex->children.push_back(e);
-  }
-  if(v1->id>v2->id){
-    revertEdge(e);
   }
   
   fillEdgeInfo(e);
@@ -246,7 +252,7 @@ template <class Ops>
 template <class Action>
 void TreePoseGraph<Ops>::treeBreadthVisit(Action& act){
   typedef std::deque<Vertex*> VertexDeque;
-  VertexDeque q;
+  static VertexDeque q;
   q.push_back(root);
   while (!q.empty()){
     Vertex* current=q.front();
@@ -257,14 +263,14 @@ void TreePoseGraph<Ops>::treeBreadthVisit(Action& act){
       typename TreePoseGraph::Edge* e=(*it);
       q.push_back(e->v2);
       if(e->v2==current){
-	//std::cerr << "error in the link direction v=" << current->id << std::endl;
-	//std::cerr << " v1=" << e->v1->id << " v2=" << e->v2->id <<  std::endl;
+	std::cerr << "error in the link direction v=" << current->id << std::endl;
+	std::cerr << " v1=" << e->v1->id << " v2=" << e->v2->id <<  std::endl;
 	assert(0);
-
       }
       it++;
     }
   }
+  q.clear();
 }
 
 template <class Ops>
@@ -632,47 +638,56 @@ int TreePoseGraph<Ops>::maxIndex(){
 }
 
 
-/** \brief A class (struct) to dermine the level of a vertex in the tree **/
+
 template <class TPG>
-struct CompressedNodesMarker{
-  typename TPG::BaseType distance;
-  int marked;
-  CompressedNodesMarker(){
-    distance=0;
-    marked=0;
-  }
-  /** marks the nodes to be suppressed when compressing a graph **/
+struct LoopChecker{
+  bool noloops;
   void perform(typename TPG::Vertex* v){
-    typename TPG::Vertex* aux=v;
-    typename TPG::Transformation vt=v->transformation;
-    while (aux && ! aux->mark && aux->parent){
-      aux=aux->parent;
-    }
-    if (! aux)
+    if (!noloops)
       return;
-    typename TPG::Transformation at=aux->transformation;
-    typename TPG::Transformation dt=at.inv()*vt;
-    typename TPG::Translation dtrans=dt.translation();
-    typename TPG::BaseType d=sqrt(dtrans*dtrans);
-    if (d<distance)
-      v->mark=false;
-    else {
+    if (!v->mark)
       v->mark=true;
-      marked++;
-    }
+    else
+      noloops=false;
   }
 };
 
+
 template <class Ops>
-int TreePoseGraph<Ops>::markNodesToCompress( TreePoseGraph<Ops>::BaseType distance){
+bool TreePoseGraph<Ops>::sanityCheck(){
+  //check that each node has exactly one parent
+  for (typename VertexMap::iterator it=vertices.begin(); it!=vertices.end(); it++){
+    Vertex* v=it->second;
+    v->mark=false;
+    Vertex* vp=v->parent;
+    
+    if (! vp){
+      if (v!=root){
+	std::cerr << "root not found in the graph" << std::endl;
+	return false;
+      }
+    }
+    
+    const EdgeList& children=it->second->children;
+    for (typename EdgeList::const_iterator lt=children.begin(); lt!=children.end(); lt++){
+      if ((*lt)->v1!=v){
+	std::cerr << "wrong direction of the edges" << std::cerr;
+	return false;
+      }
+    }
+  }
+  //check that there are no loops in the tree
+  
+  LoopChecker< TreePoseGraph<Ops> > lc;
+  lc.noloops=true;
+  treeBreadthVisit(lc);
+  if (!lc.noloops){
+    std::cerr << "the tree contains loops" << std::endl;
+    return false;
+  }
   for (typename VertexMap::iterator it=vertices.begin(); it!=vertices.end(); it++){
     Vertex* v=it->second;
     v->mark=false;
   }
-  assert(root);
-  root->mark=true;
-  CompressedNodesMarker< TreePoseGraph<Ops> > nc;
-  nc.distance=distance;
-  treeDepthVisit(nc, root);
-  return nc.marked;
+  return true;
 }

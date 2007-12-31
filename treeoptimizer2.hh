@@ -46,6 +46,8 @@
 
 #include "posegraph2.hh"
 
+namespace AISNavigation {
+
 /** \brief Class that contains the core optimization algorithm **/
 struct TreeOptimizer2: public TreePoseGraph2{
   typedef std::vector<Pose> PoseVector;
@@ -101,4 +103,5 @@ protected:
 
 };
 
+}; //namespace AISNavigation
 #endif

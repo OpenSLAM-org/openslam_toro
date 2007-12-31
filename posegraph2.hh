@@ -48,6 +48,7 @@
 #include <iostream>
 #include <vector>
 
+namespace AISNavigation {
 
 
 
@@ -102,6 +103,7 @@ struct TreePoseGraph2: public TreePoseGraph< Operations2D<double> >{
   int verboseLevel;
 };
 
+}; //namespace AISNavigation
 #endif
 
 

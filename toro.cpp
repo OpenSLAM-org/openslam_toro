@@ -41,6 +41,7 @@
 
 using namespace std;
 
+using namespace AISNavigation;
 
 char*  message[] =
 {

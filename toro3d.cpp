@@ -42,12 +42,12 @@
 
 using namespace std;
 
-
+using namespace AISNavigation;
 char*  message[] =
 {
   "*******************************************************************",
-  "*                             TORO3D v 0.1                          *",
-  "* (c) G. Grisetti, S. Grzonka, C. Stachniss, and W. Burgard     *",
+  "*                             TORO v 0.1                          *",
+  "* (c) Giorgio Grisetti, Cyrill Stachniss, and Wolfram Burgard     *",
   "*******************************************************************",
   "",
   " Usage toro [options] <graph file>",
@@ -65,7 +65,6 @@ char*  message[] =
   " -ip        ignores preconditioner",
   " -2d        load a 2d file",
   " -sl        sort the constraints according to the length of the path",
-  "            instead that according to the level of a constraint",
   "Enjoy!",
   0
 };
@@ -104,6 +103,7 @@ int  verboseLevel=0;
 bool ignorePreconditioner=false;
 bool overrideCovariances=false;
 bool twoDimensions = false;
+
 TreeOptimizer3::EdgeCompareMode compareMode=EVComparator<TreeOptimizer3::Edge*>::CompareLevel;
 string filename;
 

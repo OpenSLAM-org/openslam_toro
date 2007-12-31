@@ -48,6 +48,7 @@
 #include <iostream>
 #include <vector>
 
+namespace AISNavigation {
 
 
 /** \brief The class (struct) that contains 2D graph related functions
@@ -87,8 +88,12 @@ struct TreePoseGraph3: public TreePoseGraph<Operations3D<double> >{
   /** Debug function  **/
   void printEdgesStat( std::ostream& os);
 
+  /** Initializes the parameters based on the topology of the tree and the actual transformation*/
   void initializeOnTree();
   
+  /** Recomputes all the transformations based on the parameters and the tree*/
+  void recomputeAllTransformations();
+
   virtual void initializeFromParentEdge(Vertex* v);
 
   /** Turn around the edge (<i,j>  => <j,i>)  **/
@@ -101,8 +106,34 @@ struct TreePoseGraph3: public TreePoseGraph<Operations3D<double> >{
 
   /** Specifies the verbose level for debugging **/  
   int verboseLevel;
+
+protected:
+
+  /** \brief A class (struct) to compute the parameterization of the vertex v **/
+  struct ParameterPropagator{
+    inline void perform(TreePoseGraph3::Vertex* v){
+      if (!v->parent){
+	v->parameters=TreePoseGraph3::Transformation(0.,0.,0.,0.,0.,0.);
+	return;
+      }
+      v->parameters=v->parent->transformation.inv()*v->transformation;
+    }
+  };
+
+  /** \brief A class (struct) to compute the parameterization of the vertex v **/
+  struct TransformationPropagator{
+    inline void perform(TreePoseGraph3::Vertex* v){
+      if (!v->parent){
+	return;
+      }
+      v->transformation=v->parent->transformation*v->parameters;
+    }
+  };
+
 };
 
+
+}; //namespace AISNavigation
 #endif
 
 

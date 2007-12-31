@@ -48,6 +48,8 @@
 
 using namespace std;
 
+namespace AISNavigation {
+
 #define DEBUG(i) \
         if (verboseLevel>i) cerr
 
@@ -360,3 +362,5 @@ double TreeOptimizer2::error() const{
   }
   return globalError;
 }
+
+}; //namespace AISNavigation

@@ -46,6 +46,8 @@
 
 #include "posegraph3.hh"
 
+namespace AISNavigation {
+
 /** \brief Class that contains the core optimization algorithm **/
 struct TreeOptimizer3: public TreePoseGraph3{
   typedef std::vector<Pose> PoseVector;
@@ -85,7 +87,7 @@ struct TreeOptimizer3: public TreePoseGraph3{
   /** Iteration counter **/
   int iteration;
 
-  void recomputeAllTransformations();
+  double rpFraction;
 
 protected:
 
@@ -103,14 +105,17 @@ protected:
 
   void computePreconditioner();
 
-  void propagateErrorsPreconditioner();
+  void propagateErrors(bool usePreconditioner=false);
 
-  void propagateErrors();
-
-  /** Conmputes the error of the constraint/edge e **/
+  /** Computes the error of the constraint/edge e **/
   double error(const Edge* e) const;
 
+  /** Computes the error of the constraint/edge e **/
+  double loopError(const Edge* e) const;
 
+  /** Computes the rotational error of the constraint/edge e **/
+  double loopRotationalError(const Edge* e) const;
+  
   /** Conmputes the error of the constraint/edge e **/
   double translationalError(const Edge* e) const;
 
@@ -119,7 +124,6 @@ protected:
 
   double traslationalError(const Edge* e) const;
   
-
   /** Used to compute the learning rate lambda **/
   double gamma[2];
 
@@ -131,17 +135,47 @@ protected:
   typedef std::vector< PM_t > PMVector;
   PMVector M;
 
+  /**cached maximum path length*/
   int mpl;
+
+  /**history of rhe maximum rotational errors*, used when adaptiveRestart is enabled */
   std::vector<double> maxRotationalErrors;
+
+  /**history of rhe maximum rotational errors*, used when adaptiveRestart is enabled */
   std::vector<double> maxTranslationalErrors;
   double rotGain, trasGain;
 
+  /**callback invoked before starting the optimization of an individual constraint,
+   @param e: the constraint being optimized*/
   virtual void onStepStart(Edge* e);
+
+  /**callback invoked after finishing the optimization of an individual constraint,
+   @param e: the constraint optimized*/
   virtual void onStepFinished(Edge* e);
-  virtual void onIterationStart(int iteration);
+
+  /**callback invoked before starting a full iteration,
+   @param i: the current iteration number*/
+  virtual void onIterationStart(int i);
+
+  /**callback invoked after finishing a full iteration,
+   @param i: the current iteration number*/
+
   virtual void onIterationFinished(int iteration);
+
+  /**callback invoked before a restart of the optimizer
+   when the angular wraparound is detected*/
+  virtual void onRestartBegin();
+
+  /**callback invoked after a restart of the optimizer*/
+  virtual void onRestartDone();
+
+  /**callback for determining a termination condition,
+     it can be used by an external thread for stopping the optimizer while performing an iteration.
+     @returns true when the optimizer has to stop.*/
   virtual bool isDone();
   
 };
+
+}; //namespace AISNavigation
 
 #endif

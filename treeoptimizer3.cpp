@@ -48,30 +48,11 @@
 
 using namespace std;
 
+namespace AISNavigation {
+
 #define DEBUG(i) \
         if (verboseLevel>i) cerr
 
-
-/** \brief A class (struct) to compute the parameterization of the vertex v **/
-struct ParameterPropagator{
-  void perform(TreePoseGraph3::Vertex* v){
-    if (!v->parent){
-      v->parameters=TreePoseGraph3::Transformation(0.,0.,0.,0.,0.,0.);
-     return;
-    }
-    v->parameters=v->parent->transformation.inv()*v->transformation;
-  }
-};
-
-/** \brief A class (struct) to compute the parameterization of the vertex v **/
-struct TransformationPropagator{
-  void perform(TreePoseGraph3::Vertex* v){
-    if (!v->parent){
-     return;
-    }
-    v->transformation=v->parent->transformation*v->parameters;
-  }
-};
 
 TreeOptimizer3::TreeOptimizer3(){
   restartOnDivergence=false;
@@ -86,12 +67,7 @@ TreeOptimizer3::~TreeOptimizer3(){
 
 void TreeOptimizer3::initializeTreeParameters(){
   ParameterPropagator pp;
-  treeDepthVisit(pp, root);
-}
-
-void TreeOptimizer3::recomputeAllTransformations(){
-  TransformationPropagator tp;
-  treeDepthVisit(tp, root);
+  treeDepthVisit(pp,root);
 }
 
 
@@ -102,13 +78,15 @@ void TreeOptimizer3::iterate(TreePoseGraph3::EdgeSet* eset, bool noPreconditione
   }
 
   if (noPreconditioner)
-    propagateErrors();
+    propagateErrors(false);
   else {
     if (iteration==1)
       computePreconditioner();  
-    propagateErrorsPreconditioner();
+    propagateErrors(true);
   }
+  sortedEdges=temp;
 
+  onRestartBegin();
   if (restartOnDivergence){
     double mte, ate;
     double mre, are;
@@ -145,7 +123,7 @@ void TreeOptimizer3::iterate(TreePoseGraph3::EdgeSet* eset, bool noPreconditione
       }
     }
   }
-  sortedEdges=temp;
+  onRestartDone();
 }
 
 
@@ -231,6 +209,41 @@ double TreeOptimizer3::rotationalError(const Edge* e) const{
   Rotation r12=r2.inverse()*(r1*er);
   double r=r12.angle();
   return r*r;
+}
+
+
+double TreeOptimizer3::loopError(const Edge* e) const{
+  double err=0;
+  const Vertex* v=e->v1;
+  while (v!=e->top){
+    err+=error(v->parentEdge);
+    v=v->parent;
+  }
+  v=e->v2;
+  while (v!=e->top!=0){
+    err+=error(v->parentEdge);
+    v=v->parent;
+  }
+  if (e->v2->parentEdge!=e && e->v1->parentEdge!=e)
+    err+=error(e);
+  return err;
+}
+
+double TreeOptimizer3::loopRotationalError(const Edge* e) const{
+  double err=0;
+  const Vertex* v=e->v1;
+  while (v!=e->top){
+    err+=rotationalError(v->parentEdge);
+    v=v->parent;
+  }
+  v=e->v2;
+  while (v!=e->top){
+    err+=rotationalError(v->parentEdge);
+    v=v->parent;
+  }
+  if (e->v2->parentEdge!=e && e->v1->parentEdge!=e)
+    err+=rotationalError(e);
+  return err;
 }
 
 
@@ -323,24 +336,26 @@ void TreeOptimizer3::initializeOnlineOptimization(EdgeCompareMode mode){
   v0->transformation=Transformation(TreePoseGraph3::Pose(0,0,0,0,0,0));
 }
 
-void TreeOptimizer3::onStepStart(Edge* e){ 
-  (void) e;
+void TreeOptimizer3::onStepStart(Edge* e){
+  DEBUG(5) << "entering edge" << e << endl;
+}  
+void TreeOptimizer3::onStepFinished(Edge* e){
+  DEBUG(5) << "exiting edge" << e << endl;
 }
 
-void TreeOptimizer3::onStepFinished(Edge* e){ 
-  (void) e;
+void TreeOptimizer3::onIterationStart(int iteration){
+  DEBUG(5) << "entering iteration " << iteration << endl;
 }
 
-void TreeOptimizer3::onIterationStart(int iteration){ 
-  (void) iteration;
+void TreeOptimizer3::onIterationFinished(int iteration){
+  DEBUG(5) << "exiting iteration " << iteration << endl;
 }
 
-void TreeOptimizer3::onIterationFinished(int iteration){ 
-  (void) iteration;
+void TreeOptimizer3::onRestartBegin(){}
+void TreeOptimizer3::onRestartDone(){}
+bool TreeOptimizer3::isDone(){
+  return false;
 }
 
-bool TreeOptimizer3::isDone(){ 
-  return false; 
-}
 
-
+}; //namespace AISNavigation

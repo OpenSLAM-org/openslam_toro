@@ -47,6 +47,8 @@
 
 using namespace std;
 
+namespace AISNavigation {
+
 
 #define LINESIZE 81920
 
@@ -417,3 +419,5 @@ void TreePoseGraph2::collapseEdge(Edge* e){
     v++;
   }
 }
+
+}; //namespace AISNavigation

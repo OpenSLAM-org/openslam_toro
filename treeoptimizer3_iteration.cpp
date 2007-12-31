@@ -4,202 +4,14 @@
 
 using namespace std;
 
+namespace AISNavigation {
+
 #define DEBUG(i) \
         if (verboseLevel>i) cerr
 
 
-struct NodeInfo{
-  TreeOptimizer3::Vertex* n;
-  double translationalWeight;
-  double rotationalWeight;
-  int direction;
-  NodeInfo(TreeOptimizer3::Vertex* v=0, double tw=0, double rw=0, int dir=0){
-    n=v;
-    translationalWeight=tw;
-    rotationalWeight=rw;
-    direction=dir;
-  }
-};
 
-typedef std::vector<NodeInfo> NodeInfoVector;
-
-/********************************** unpreconditioned error distribution ************************************/
-
-void TreeOptimizer3::propagateErrors(){
-  iteration++;
-  int edgeCount=0;
-  // this is the workspace for computing the paths without 
-  // bothering too much the memory allocation
-  static NodeInfoVector path;
-  path.resize(edges.size()+1);
-  static Rotation zero(0.,0.,0.);
-
-  onIterationStart(iteration);
-  for (EdgeSet::iterator it=sortedEdges->begin(); it!=sortedEdges->end(); it++){
-    edgeCount++;
-    if (! (edgeCount%1000))
-      DEBUG(1) << "c";
-    
-    if (isDone())
-      return;
-
-    Edge* e=*it;
-    Vertex* top=e->top;
-    Vertex* v1=e->v1;
-    Vertex* v2=e->v2;
-    int l=e->length;
-
-    onStepStart(*it);
-    
-    
-    DEBUG(2) << "Edge: " << v1->id << " " << v2->id << ", top=" << top->id << ", length="<< l <<endl;
-
-    //BEGIN: Path computation
-    int pc=0;
-    Vertex* aux=v1;
-    while(aux!=top){
-      path[pc++]=NodeInfo(aux,0.,0.,-1);
-      aux=aux->parent;
-    }
-    int topIndex=pc;
-    path[pc++]=NodeInfo(top,0.,0.,0);
-    pc=l;
-    aux=v2;
-    while(aux!=top){
-      path[pc--]=NodeInfo(aux,0.,0.,1);
-      aux=aux->parent;
-    }
-    //END: Path computation
-    
-
-    Transformation topTransformation=top->transformation;
-    Transformation topParameters=top->parameters;
-
-    //BEGIN: Rotational Error
-    Rotation r1=getRotation(v1, top);
-    Rotation r2=getRotation(v2, top);
-    Rotation re=e->transformation.rotation();
-    Rotation rR=r2.inverse()*(r1*re);
-    Translation angles=rR.toAngles();
-    rR=Rotation(angles.roll(), angles.pitch(), angles.yaw());
-    rR=rR.normalized();
-    
-    double rotationFactor=sqrt(double(l))*rotGain/(double)iteration;
-    
-    if (rotationFactor>1)
-      rotationFactor=1;
-
-    Rotation irR=rR.inverse();
-    irR=irR.normalized();
-
-    Translation axis=rR.axis();
-    double angle=rR.angle();
-    //cerr <<  "EE(" << v1->id << "," << v2->id <<")" << axis.x() << " " << axis.y() << " " << axis.z() << " alpha=" << angle << endl;
-    Translation iAxis=irR.axis();
-    double iAngle=irR.angle();
-    
-    double cw=0;
-    Rotation Gamma_prev=zero;
-    for (int i= topIndex-1; i>=0; i--){
-      cw+=1./l;
-      Vertex* n=path[i].n;
-      Rotation R=n->parameters.rotation();
-      Rotation B(iAxis, iAngle*cw*rotationFactor);
-      R= Gamma_prev.inverse() * R * B;
-      Gamma_prev=B;
-      n->parameters.setRotation(R);
-      n->transformation=n->parent->transformation*n->parameters;
-    }
-  
-    cw=0;
-    Gamma_prev=zero;
-    for (int i= topIndex+1; i<=l; i++){
-      cw+=1./l;
-      Vertex* n=path[i].n;
-      Rotation R=n->parameters.rotation();
-      Rotation B(axis, angle*cw*rotationFactor);
-      R= Gamma_prev.inverse() * R * B;
-      Gamma_prev=B;
-      n->parameters.setRotation(R);
-      n->transformation=n->parent->transformation*n->parameters;
-    }
-
-    //END: Rotational Error
-
-    //BEGIN: Translational Error
-    Translation topTranslation=top->transformation.translation();
-   
-    Transformation tr12=v1->transformation*e->transformation;
-    Translation tR=tr12.translation()-v2->transformation.translation();
-
-    double translationFactor=trasGain*l/(double)iteration;
-    if (translationFactor>1)
-      translationFactor=1;
-    Translation dt=tR*translationFactor;
-
-    //left wing
-    double lcum=0;
-    for (int i=topIndex-1; i>=0; i--){
-      Vertex* n=path[i].n;
-      lcum-=1./l;
-      double fraction=lcum;
-      Translation offset= dt*fraction;
-      Translation T=n->transformation.translation()+offset;
-      n->transformation.setTranslation(T);
-    }
-    //right wing
-    
-    double rcum=0;
-    for (int i=topIndex+1; i<=l; i++){
-      Vertex* n=path[i].n;
-      rcum+=1./l;
-      double fraction=rcum;
-      Translation offset= dt*fraction;
-      Translation T=n->transformation.translation()+offset;
-      n->transformation.setTranslation(T);
-    }
-    assert(fabs(lcum+rcum)-1<1e-6);
-
-    recomputeParameters(v1, top);
-    recomputeParameters(v2, top);
-    //END: Translational Error
-
-    onStepFinished(e);
-
-    if (verboseLevel>2){
-      Rotation newRotResidual=v2->transformation.rotation().inverse()*(v1->transformation.rotation()*re);
-      Translation newRotResidualAxis=newRotResidual.axis();
-      double      newRotResidualAngle=newRotResidual.angle();
-      Translation rotResidualAxis=rR.axis();
-      double      rotResidualAngle=rR.angle();
-      Translation newTransResidual=(v1->transformation*e->transformation).translation()-v2->transformation.translation();
-
-      cerr << "RotationalFraction:  " << rotationFactor << endl;
-      cerr << "Rotational residual: " 
-	   << " axis " << rotResidualAxis.x()  << "\t" << rotResidualAxis.y()  << "\t" << rotResidualAxis.z() << " --> "
-	   << "   ->  " << newRotResidualAxis.x()  << "\t" << newRotResidualAxis.y()  << "\t" << newRotResidualAxis.z()  << endl;
-      cerr << " angle " << rotResidualAngle  << "\t" << newRotResidualAngle  << endl;
-      
-      cerr << "Translational Fraction:  " << translationFactor << endl;
-      cerr << "Translational Residual" << endl;
-      cerr << "    " << tR.x()  << "\t" << tR.y()  << "\t" << tR.z()  << endl;
-      cerr << "    " << newTransResidual.x()  << "\t" << newTransResidual.y()  << "\t" << newTransResidual.z()  << endl;
-    }
-    
-    if (verboseLevel>101){
-      char filename [1000];
-      sprintf(filename, "po-%02d-%03d-%03d-.dat", iteration, v1->id, v2->id);
-      recomputeAllTransformations();
-      saveGnuplot(filename);
-    }
-  }
-  onIterationFinished(iteration);
-}
-
-
-/********************************** Preconditioned error distribution ************************************/
-
-
+//helper functions. Should I explain :-)?
 inline double max3( const double& a, const double& b, const double& c){
   double m=a>b?a:b;
   return m>c?m:c;
@@ -208,6 +20,33 @@ inline double min3( const double& a, const double& b, const double& c){
   double m=a<b?a:b;
   return m<c?m:c;
 }
+
+
+struct NodeInfo{
+  TreeOptimizer3::Vertex* n;
+  double translationalWeight;
+  double rotationalWeight;
+  int direction;
+  TreeOptimizer3::Transformation transformation;
+  TreeOptimizer3::Transformation parameters;
+  NodeInfo(TreeOptimizer3::Vertex* v=0, double tw=0, double rw=0, int dir=0,
+	   TreeOptimizer3::Transformation t=TreeOptimizer3::Transformation(0,0,0,0,0,0), 
+	   TreeOptimizer3::Parameters p=TreeOptimizer3::Transformation(0,0,0,0,0,0)){
+    n=v;
+    translationalWeight=tw;
+    rotationalWeight=rw;
+    direction=dir;
+    transformation=t;
+    parameters=p;
+  }
+};
+
+typedef std::vector<NodeInfo> NodeInfoVector;
+
+
+/********************************** Preconditioned and unpreconditioned error distribution ************************************/
+
+
 
 
 
@@ -253,15 +92,15 @@ void TreeOptimizer3::computePreconditioner(){
 }
 
 
-void TreeOptimizer3::propagateErrorsPreconditioner(){
+void TreeOptimizer3::propagateErrors(bool usePreconditioner){
   iteration++;
   int edgeCount=0;
   // this is the workspace for computing the paths without 
   // bothering too much the memory allocation
   static NodeInfoVector path;
   path.resize(edges.size()+1);
-
   static Rotation zero(0.,0.,0.);
+
   onIterationStart(iteration);
   for (EdgeSet::iterator it=sortedEdges->begin(); it!=sortedEdges->end(); it++){
     edgeCount++;
@@ -278,7 +117,8 @@ void TreeOptimizer3::propagateErrorsPreconditioner(){
     int l=e->length;
     onStepStart(e);
     
-    
+    recomputeTransformations(v1,top);
+    recomputeTransformations(v2,top);
     DEBUG(2) << "Edge: " << v1->id << " " << v2->id << ", top=" << top->id << ", length="<< l <<endl;
 
     //BEGIN: Path and weight computation 
@@ -287,82 +127,93 @@ void TreeOptimizer3::propagateErrorsPreconditioner(){
     double totTW=0, totRW=0;
     while(aux!=top){
       int index=aux->id;
-      double tw=1./M[index][1], rw=1./M[index][1];
+      double tw=1./(double)l, rw=1./(double)l;
+      if (usePreconditioner){
+	tw=1./M[index][0]; 
+	rw=1./M[index][1];
+      }
       totTW+=tw;
       totRW+=rw;
-      path[pc++]=NodeInfo(aux,tw,rw,-1);
+      path[pc++]=NodeInfo(aux,tw,rw,-1,aux->transformation, aux->parameters);
       aux=aux->parent;
     }
     int topIndex=pc;
-    path[pc++]=NodeInfo(top,0.,0.,0);
+    path[pc++]=NodeInfo(top,0.,0.,0, top->transformation, top->parameters);
     pc=l;
     aux=v2;
     while(aux!=top){
       int index=aux->id;
-      double tw=1./M[index][1], rw=1./M[index][1];
+      double tw=1./l, rw=1./l;
+      if (usePreconditioner){
+	tw=1./M[index][0]; 
+	rw=1./M[index][1];
+      }
       totTW+=tw;
       totRW+=rw;
-      path[pc--]=NodeInfo(aux,tw,rw,1);
+      path[pc--]=NodeInfo(aux,tw,rw,1,aux->transformation, aux->parameters);
       aux=aux->parent;
     }
+
+    //store the transformations relative to the top node
+    Transformation topTransformation=top->transformation;
+    Transformation topParameters=top->parameters;
+
     //END: Path and weight computation
     
 
-    Transformation topTransformation=top->transformation;
-    Transformation topParameters=top->parameters;
 
     //BEGIN: Rotational Error
     Rotation r1=getRotation(v1, top);
     Rotation r2=getRotation(v2, top);
     Rotation re=e->transformation.rotation();
     Rotation rR=r2.inverse()*(r1*re);
-    Translation angles=rR.toAngles();
-    rR=Rotation(angles.roll(), angles.pitch(), angles.yaw());
-    rR=rR.normalized();
-    
-    double rotationFactor=
+    double rotationFactor=(usePreconditioner)?
       sqrt(double(l))*rotGain/
       ( gamma[0]* (double)iteration * min3(e->informationMatrix[0][0],
 					   e->informationMatrix[1][1], 
-					   e->informationMatrix[2][2]));
+					   e->informationMatrix[2][2])):
+      sqrt(double(l))*rotGain/(double)iteration;
+
     if (rotationFactor>1)
       rotationFactor=1;
 
-    Rotation irR=rR.inverse();
-    irR=irR.normalized();
+    Rotation totalRotation = path[l].transformation.rotation() * rR * path[l].transformation.rotation().inverse();
 
-    Translation axis=rR.axis();
-    double angle=rR.angle();
-    Translation iAxis=irR.axis();
-    double iAngle=irR.angle();
-    
+    Translation axis   = totalRotation.axis();
+    double angle=totalRotation.angle();
+
     double cw=0;
-    Rotation Gamma_prev=zero;
-    for (int i= topIndex-1; i>=0; i--){
-      Vertex* n=path[i].n;
-      cw+=path[i].rotationalWeight/totRW;
-      Rotation R=n->parameters.rotation();
-      Rotation B(iAxis, iAngle*cw*rotationFactor);
-      R= Gamma_prev.inverse() * R * B;
-      Gamma_prev=B;
-      n->parameters.setRotation(R);
-      n->transformation=n->parent->transformation*n->parameters;
+    for (int i= 1; i<=topIndex; i++){
+      cw+=path[i-1].rotationalWeight/totRW;
+      Rotation R=path[i].transformation.rotation();
+      Rotation B(axis, angle*cw*rotationFactor);
+      R= B*R;
+      path[i].transformation.setRotation(R);
     }
-  
-    cw=0;
-    Gamma_prev=zero;
     for (int i= topIndex+1; i<=l; i++){
       cw+=path[i].rotationalWeight/totRW;
-      Vertex* n=path[i].n;
-      Rotation R=n->parameters.rotation();
+      Rotation R=path[i].transformation.rotation();
       Rotation B(axis, angle*cw*rotationFactor);
-      R= Gamma_prev.inverse() * R * B;
-      Gamma_prev=B;
-      n->parameters.setRotation(R);
-      n->transformation=n->parent->transformation*n->parameters;
+      R= B*R;
+      path[i].transformation.setRotation(R);
+    }
+
+    //recompute the parameters based on the transformation
+    for (int i=0; i<topIndex; i++){
+      Vertex* n=path[i].n;
+      n->parameters.setRotation(path[i+1].transformation.rotation().inverse()*path[i].transformation.rotation());
+    }
+    for (int i= topIndex+1; i<=l; i++){
+      Vertex* n=path[i].n;
+      n->parameters.setRotation(path[i-1].transformation.rotation().inverse()*path[i].transformation.rotation());
     }
 
     //END: Rotational Error
+
+
+    //now spread the parameters
+    recomputeTransformations(v1,top);
+    recomputeTransformations(v2,top);
 
     //BEGIN: Translational Error
     Translation topTranslation=top->transformation.translation();
@@ -370,10 +221,12 @@ void TreeOptimizer3::propagateErrorsPreconditioner(){
     Transformation tr12=v1->transformation*e->transformation;
     Translation tR=tr12.translation()-v2->transformation.translation();
 
-    double translationFactor=trasGain*l/
-	( gamma[1]* (double)iteration * min3(e->informationMatrix[3][3],
-					     e->informationMatrix[4][4], 
-					     e->informationMatrix[5][5]));
+    double translationFactor=(usePreconditioner)?
+      trasGain*l/( gamma[1]* (double)iteration * min3(e->informationMatrix[3][3],
+						      e->informationMatrix[4][4], 
+						      e->informationMatrix[5][5])):
+      trasGain*l/(double)iteration;
+
     if (translationFactor>1)
       translationFactor=1;
     Translation dt=tR*translationFactor;
@@ -382,7 +235,7 @@ void TreeOptimizer3::propagateErrorsPreconditioner(){
     double lcum=0;
     for (int i=topIndex-1; i>=0; i--){
       Vertex* n=path[i].n;
-      lcum-=path[i].translationalWeight/totTW;
+      lcum-=(usePreconditioner) ? path[i].translationalWeight/totTW :  1./(double)l;
       double fraction=lcum;
       Translation offset= dt*fraction;
       Translation T=n->transformation.translation()+offset;
@@ -393,7 +246,7 @@ void TreeOptimizer3::propagateErrorsPreconditioner(){
     double rcum=0;
     for (int i=topIndex+1; i<=l; i++){
       Vertex* n=path[i].n;
-      rcum+=path[i].translationalWeight/totTW;;
+      rcum+=(usePreconditioner) ? path[i].translationalWeight/totTW :  1./(double)l;
       double fraction=rcum;
       Translation offset= dt*fraction;
       Translation T=n->transformation.translation()+offset;
@@ -404,8 +257,8 @@ void TreeOptimizer3::propagateErrorsPreconditioner(){
     recomputeParameters(v1, top);
     recomputeParameters(v2, top);
 
-
     //END: Translational Error
+
     onStepFinished(e);
 
     if (verboseLevel>2){
@@ -437,3 +290,5 @@ void TreeOptimizer3::propagateErrorsPreconditioner(){
   }
   onIterationFinished(iteration);
 }
+
+};//namespace AISNavigation
