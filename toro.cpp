@@ -2,8 +2,8 @@
  *
  * This source code is part of the Tree-based Network Optimizer (TORO)
  *
- * TORO Copyright (c) 2007 Giorgio Grisetti, Cyrill Stachniss, and
- * Wolfram Burgard
+ *   TORO Copyright (c) 2007 Giorgio Grisetti, Cyrill Stachniss, 
+ *                           Slawomir Grzonka and  Wolfram Burgard
  *
  * TORO is licences under the Common Creative License,
  * Attribution-NonCommercial-ShareAlike 3.0
@@ -47,7 +47,8 @@ char*  message[] =
 {
   "*******************************************************************",
   "*                             TORO v 0.1                          *",
-  "* (c) Giorgio Grisetti, Cyrill Stachniss, and Wolfram Burgard     *",
+  "*              (c) Giorgio Grisetti, Cyrill Stachniss,            *",
+  "*                  Slawomir Grzonka, and Wolfram Burgard          *",
   "*******************************************************************",
   "",
   " Usage toro [options] <graph file>",
@@ -145,7 +146,8 @@ int main (int argc, const char** argv){
 
   cerr << "*******************************************************************" << endl;
   cerr << "*                              TORO v 0.1                         *" << endl;
-  cerr << "* (c) Giorgio Grisetti, Cyrill Stachniss, and Wolfram Burgard     *" << endl;
+  cerr << "*              (c) Giorgio Grisetti, Cyrill Stachniss,            *" << endl;
+  cerr << "*                  Slawomir Grzonka and Wolfram Burgard           *" << endl;
   cerr << "*******************************************************************" << endl;
   cerr << " Verbosity Level              = " << verboseLevel << endl;
   cerr << " Node Reduction               = " << ((reduceNodes)?"enabled":"disabled") << endl;

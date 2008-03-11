@@ -45,7 +45,7 @@ LFLAGS =
 banner = $(SILENT) \
 	echo ; \
 	echo "*******************************************************************" ; \
-	echo "* TORO (c) by Giorgio Grisetti, Cyrill Stachniss, Wolfram Burgard *" ; \
+	echo "* TORO (c) by Giorgio Grisetti, Cyrill Stachniss, Slawomir Grzonka, Wolfram Burgard *" ; \
 	echo "*******************************************************************" ; \
 
 

@@ -1,12 +1,9 @@
-/**********************************************************************
+q/**********************************************************************
  *
  * This source code is part of the Tree-based Network Optimizer (TORO)
  *
- * TORO Copyright (c) 2007 Giorgio Grisetti, Cyrill Stachniss, and
- * Wolfram Burgard
- *
- * TORO is licences under the Common Creative License,
- * Attribution-NonCommercial-ShareAlike 3.0
+ *   TORO Copyright (c) 2007 Giorgio Grisetti, Cyrill Stachniss, 
+ *                           Slawomir Grzonka and  Wolfram Burgard
  *
  * You are free:
  *   - to Share - to copy, distribute and transmit the work
@@ -47,7 +44,8 @@ char*  message[] =
 {
   "*******************************************************************",
   "*                             TORO v 0.1                          *",
-  "* (c) Giorgio Grisetti, Cyrill Stachniss, and Wolfram Burgard     *",
+  "*              (c) Giorgio Grisetti, Cyrill Stachniss,            *",
+  "*                  Slawomir Grzonka, and Wolfram Burgard          *",
   "*******************************************************************",
   "",
   " Usage toro [options] <graph file>",
