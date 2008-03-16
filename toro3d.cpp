@@ -1,4 +1,4 @@
-q/**********************************************************************
+/**********************************************************************
  *
  * This source code is part of the Tree-based Network Optimizer (TORO)
  *
@@ -35,7 +35,6 @@ q/**********************************************************************
 #include <iostream>
 #include <fstream>
 #include "treeoptimizer3.hh"
-#include <sys/time.h>
 
 using namespace std;
 
@@ -68,7 +67,7 @@ char*  message[] =
 };
 
 
-string stripExtension(const string s){
+std::string stripExtension(const std::string s){
   int i;
   for (i=s.length()-1; i>0; i--){
     string k=s.substr(i,1);
@@ -78,7 +77,7 @@ string stripExtension(const string s){
   return s.substr(0,i);
 }
 
-string getExtension(const string s){
+std::string getExtension(const std::string s){
   int i;
   for (i=s.length()-1; i>0; i--){
     string k=s.substr(i,1);
@@ -103,12 +102,12 @@ bool overrideCovariances=false;
 bool twoDimensions = false;
 
 TreeOptimizer3::EdgeCompareMode compareMode=EVComparator<TreeOptimizer3::Edge*>::CompareLevel;
-string filename;
+std::string filename;
 
 void printBannerAndStatus(ostream& os){
   os << "#******************************************************************" << endl;
   os << "#                              TORO3D v 0.1                       *" << endl;
-  os << "#    (c) G.Grisetti, S.Grzonka, C.Stachniss, and W. Burgard       *" << endl;
+  os << "#    (c) G.Grisetti, C.Stachniss, S.Grzonka, and W. Burgard       *" << endl;
   os << "#******************************************************************" << endl;
   os << "#Verbosity Level              = " << verboseLevel << endl;
   os << "#Node Reduction               = " << ((reduceNodes)?"enabled":"disabled") << endl;
