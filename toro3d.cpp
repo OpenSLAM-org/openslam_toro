@@ -88,7 +88,7 @@ std::string getExtension(const std::string s){
 }
 
 TreeOptimizer3 pg;
-bool compressIndices=true;
+bool compressIndices=false;
 bool reduceNodes=true;
 bool initializeOnTree=true;
 int  treeType=0;
