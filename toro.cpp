@@ -43,7 +43,7 @@ using namespace std;
 
 using namespace AISNavigation;
 
-char*  message[] =
+const char*  message[] =
 {
   "*******************************************************************",
   "*                             TORO v 0.1                          *",
@@ -89,7 +89,7 @@ string getExtension(const string s){
 
 int main (int argc, const char** argv){
   TreeOptimizer2 pg;
-  bool compressIndices=true;
+  bool compressIndices=false;
   bool reduceNodes=true;
   bool initializeOnTree=true;
   int  treeType=0;
@@ -195,7 +195,7 @@ int main (int argc, const char** argv){
     break;
   case 1:
     cerr << "MST construction... ";
-    pg.buildMST(0);
+    pg.buildMST(pg.vertices.begin()->first);
     cerr << "Done" << endl;
     break;
   default:

@@ -39,7 +39,7 @@
 using namespace std;
 
 using namespace AISNavigation;
-char*  message[] =
+const char*  message[] =
 {
   "*******************************************************************",
   "*                             TORO v 0.1                          *",
@@ -214,7 +214,7 @@ int main (int argc, const char** argv){
     break;
   case 1:
     cerr << "MST construction... ";
-    pg.buildMST(0);
+    pg.buildMST(pg.vertices.begin()->first);
     cerr << "Done" << endl;
     break;
   default:
