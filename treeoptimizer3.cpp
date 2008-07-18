@@ -220,7 +220,7 @@ double TreeOptimizer3::loopError(const Edge* e) const{
     v=v->parent;
   }
   v=e->v2;
-  while (v!=e->top!=0){
+  while (v==e->top){
     err+=error(v->parentEdge);
     v=v->parent;
   }
