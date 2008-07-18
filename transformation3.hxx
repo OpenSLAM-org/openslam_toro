@@ -34,7 +34,7 @@
  * PURPOSE.  
  **********************************************************************/
 
-#include <values.h>
+#include <limits>
 
 template <class T>
 inline Vector3<T> operator * (const T& d, const Vector3<T>& v) {
@@ -259,7 +259,7 @@ inline Vector3<T> Quaternion<T>::toAngles() const{
 template<class T>
 inline Vector3<T> Quaternion<T>::axis() const {
   double imNorm=sqrt(x*x+y*y+z*z);
-  if (imNorm<MINDOUBLE){
+  if (imNorm<std::numeric_limits<double>::min()){
     return Vector3<T>(0.,0.,1.);
   }
   return Vector3<T>(x/imNorm, y/imNorm, z/imNorm);

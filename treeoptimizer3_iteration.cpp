@@ -91,7 +91,7 @@ void TreeOptimizer3::computePreconditioner(){
     M[i][0]=0;
     M[i][1]=0;
   }
-  gamma[0] = gamma[1] = MAXDOUBLE;
+  gamma[0] = gamma[1] = numeric_limits<double>::max();
 
   int edgeCount=0;
   for (EdgeSet::iterator it=sortedEdges->begin(); it!=sortedEdges->end(); it++){

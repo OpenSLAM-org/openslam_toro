@@ -374,7 +374,7 @@ bool TreePoseGraph<Ops>::buildSimpleTree(){
       continue;
     }
     Edge* bestEdge=v->edges.front();
-    int bestId=MAXINT;
+    int bestId=std::numeric_limits<int>::max();
     bool found=false;
     typename EdgeList::iterator li=v->edges.begin();
     while(li!=v->edges.end()){

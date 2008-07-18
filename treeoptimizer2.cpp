@@ -104,7 +104,7 @@ void TreeOptimizer2::initializeOnlineOptimization(){
 }
 
 void TreeOptimizer2::computePreconditioner(){
-  gamma[0] = gamma[1] =  gamma[2] = MAXDOUBLE;
+  gamma[0] = gamma[1] =  gamma[2] = numeric_limits<double>::max();
 
   for (uint i=0; i<M.size(); i++)
     M[i]=Pose(0.,0.,0.);

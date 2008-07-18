@@ -51,7 +51,7 @@
 #include <map>
 #include <deque>
 #include <vector>
-#include <values.h>
+#include <limits>
 #include <algorithm>
 
 namespace AISNavigation{

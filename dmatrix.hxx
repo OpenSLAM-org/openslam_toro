@@ -126,7 +126,7 @@ template <class X> DMatrix<X> DMatrix<X>::inv() const {
   aux1.detach();
   for (int i=0;i<nrows;i++) {
     int k=i;
-    for (;k<nrows&&aux1.mrows[k][i]==X(0);k++);
+    for (;k<nrows&&aux1.mrows[k][i]==X(0);k++){};
     if (k>=nrows) throw DNotInvertibleMatrixException();
     X val=aux1.mrows[k][i];
     for (int j=0;j<nrows;j++) {
@@ -162,7 +162,7 @@ template <class X> const X DMatrix<X>::det() const {
   aux.detach();
   for (int i=0;i<nrows;i++) {
     int k=i;
-    for (;k<nrows&&aux.mrows[k][i]==X(0);k++);
+    for (;k<nrows&&aux.mrows[k][i]==X(0);k++){};
     if (k>=nrows) return X(0);
     X val=aux.mrows[k][i];
     for (int j=0;j<nrows;j++) {
