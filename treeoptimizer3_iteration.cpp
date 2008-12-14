@@ -203,12 +203,20 @@ void TreeOptimizer3::propagateErrors(bool usePreconditioner){
     Rotation r2=getRotation(v2, top);
     Rotation re=e->transformation.rotation();
     Rotation rR=r2.inverse()*(r1*re);
+
     double rotationFactor=(usePreconditioner)?
-      sqrt(double(l))*rotGain/
-      ( gamma[0]* (double)iteration * min3(e->informationMatrix[0][0],
-					   e->informationMatrix[1][1], 
-					   e->informationMatrix[2][2])):
+      sqrt(double(l))* min3(e->informationMatrix[0][0],
+			    e->informationMatrix[1][1], 
+			    e->informationMatrix[2][2])/
+      ( gamma[0]* (double)iteration ):
       sqrt(double(l))*rotGain/(double)iteration;
+
+//     double rotationFactor=(usePreconditioner)?
+//       sqrt(double(l))*rotGain/
+//       ( gamma[0]* (double)iteration * min3(e->informationMatrix[0][0],
+// 					   e->informationMatrix[1][1], 
+// 					   e->informationMatrix[2][2])):
+//       sqrt(double(l))*rotGain/(double)iteration;
 
     if (rotationFactor>1)
       rotationFactor=1;
@@ -257,10 +265,17 @@ void TreeOptimizer3::propagateErrors(bool usePreconditioner){
     Transformation tr12=v1->transformation*e->transformation;
     Translation tR=tr12.translation()-v2->transformation.translation();
 
+
+//     double translationFactor=(usePreconditioner)?
+//       trasGain*l/( gamma[1]* (double)iteration * min3(e->informationMatrix[3][3],
+// 						      e->informationMatrix[4][4], 
+// 						      e->informationMatrix[5][5])):
+//       trasGain*l/(double)iteration;
+
     double translationFactor=(usePreconditioner)?
-      trasGain*l/( gamma[1]* (double)iteration * min3(e->informationMatrix[3][3],
-						      e->informationMatrix[4][4], 
-						      e->informationMatrix[5][5])):
+      trasGain*l*min3(e->informationMatrix[3][3],
+		      e->informationMatrix[4][4], 
+		      e->informationMatrix[5][5])/( gamma[1]* (double)iteration):
       trasGain*l/(double)iteration;
 
     if (translationFactor>1)
