@@ -36,8 +36,10 @@
 
 #include <sys/time.h>
 #include <iostream>
+#include <stdio.h>
 #include "treeoptimizer2.hh"
 #include <sys/time.h>
+
 
 using namespace std;
 
