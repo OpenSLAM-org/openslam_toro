@@ -31,7 +31,8 @@ ifdef CYGWIN
 CXXFLAGS += -DCYGWIN
 endif
 
-CXXFLAGS += -O3 -ffast-math -Wall -W 
+#CXXFLAGS += -O3 -ffast-math -Wall -W 
+CXXFLAGS += -O0 -g -Wall -W 
 IFLAGS =
 LFLAGS =
 

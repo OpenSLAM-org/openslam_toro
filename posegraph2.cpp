@@ -134,6 +134,15 @@ bool TreePoseGraph2::loadEquivalences(const char* filename){
       revertEdge(e);
     collapseEdge(e);
   }
+  for (TreePoseGraph2::VertexMap::iterator it=vertices.begin(); it!=vertices.end(); it++){
+    Vertex* v=it->second;
+    v->edges.clear();
+  }
+  for (TreePoseGraph2::EdgeMap::iterator it=edges.begin(); it!=edges.end(); it++){
+    TreePoseGraph2::Edge * e=it->second;
+    e->v1->edges.push_back(e);
+    e->v2->edges.push_back(e);
+  }
   return true;
 }
 
@@ -290,8 +299,17 @@ void TreePoseGraph2::initializeFromParentEdge(Vertex* v){
 }
 
 void TreePoseGraph2::collapseEdge(Edge* e){
+  EdgeMap::iterator ie_it=edges.find(e);
+  if (ie_it==edges.end())
+    return;
+  VertexMap::iterator it1=vertices.find(e->v1->id);
+  VertexMap::iterator it2=vertices.find(e->v2->id);
+  assert(it1!=vertices.end());
+  assert(it2!=vertices.end());
+
   Vertex* v1=e->v1;
   Vertex* v2=e->v2;
+  
   
   // all the edges of v2 become outgoing
   for (EdgeList::iterator it=v2->edges.begin(); it!=v2->edges.end(); it++){
