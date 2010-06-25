@@ -23,6 +23,8 @@ template <class X> DVector<X>::DVector(const DVector<X>& m) {
 }
 
 template <class X> DVector<X>& DVector<X>::operator=(const DVector<X>& m) {
+  if (shares==m.shares)
+    return *this;
   if (!--(*shares)) {
     delete [] elems;
     delete shares;
@@ -106,6 +108,8 @@ template <class X> DMatrix<X>::DMatrix(const DMatrix& m) {
 }
 
 template <class X> DMatrix<X>& DMatrix<X>::operator=(const DMatrix& m) {
+  if (shares==m.shares)
+    return *this;
   if (!--(*shares)) {
     delete [] elems;
     delete [] mrows;

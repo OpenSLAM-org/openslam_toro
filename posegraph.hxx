@@ -105,7 +105,7 @@ typename TreePoseGraph<Ops>::Vertex* TreePoseGraph<Ops>::addVertex(int id, const
   v->pose=pose;
   v->parent=0;
   v->mark=false;
-  vertices.insert(make_pair(id,v));
+  vertices.insert(std::make_pair(id,v));
   return v;
 }
 
@@ -146,7 +146,7 @@ typename TreePoseGraph<Ops>::Edge* TreePoseGraph<Ops>::addEdge(TreePoseGraph<Ops
   e->informationMatrix=i;
   v1->edges.push_back(e);
   v2->edges.push_back(e);
-  edges.insert(make_pair(e,e));
+  edges.insert(std::make_pair(e,e));
   return e;
 }
 
@@ -623,7 +623,7 @@ void TreePoseGraph<Ops>::compressIndices(){
   for (typename VertexMap::iterator it=vertices.begin(); it!=vertices.end(); it++){
     Vertex* v=it->second;
     v->id=i;
-    vmap.insert(make_pair(i,v));
+    vmap.insert(std::make_pair(i,v));
     i++;
   }
   vertices=vmap;
