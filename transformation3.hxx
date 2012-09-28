@@ -36,6 +36,8 @@
 
 #include <limits>
 
+namespace AISNavigation {
+
 template <class T>
 inline Vector3<T> operator * (const T& d, const Vector3<T>& v) {
   return Vector3<T>(v.elems[0]*d, v.elems[1]*d, v.elems[2]*d);
@@ -445,4 +447,5 @@ inline Transformation3<T> operator * (const Transformation3<T>& m1, const Transf
   return rv;
 }
 
+} // namespace AISNavigation
 

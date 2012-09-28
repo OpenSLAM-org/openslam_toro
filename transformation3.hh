@@ -41,6 +41,8 @@
 #include <cmath>
 #include "dmatrix.hh"
 
+namespace AISNavigation {
+
 template <class T>
 struct Vector3 {
   T elems[3] ;
@@ -264,6 +266,7 @@ struct Operations3D{
   typedef Transformation3<T> ParametersType;
 };
 
+} // namespace AISNavigation
 /**************************** IMPLEMENTATION ****************************/
 
 #include "transformation3.hxx"
